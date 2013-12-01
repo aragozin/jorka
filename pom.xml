@@ -29,7 +29,7 @@
     <name>${project.groupId}::${project.artifactId}</name>
     <description>RegEx based pattern matching utility</description>
     <packaging>jar</packaging>
-    <version>0.1</version>
+    <version>0.1-SNAPSHOT</version>
 
     <licenses>
         <license>
