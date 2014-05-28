@@ -29,7 +29,7 @@
     <name>${project.groupId}::${project.artifactId}</name>
     <description>RegEx based pattern matching utility</description>
     <packaging>jar</packaging>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2</version>
 
     <licenses>
         <license>
@@ -55,7 +55,7 @@
         <connection>scm:git:https://github.com/aragozin/jorka.git</connection>
         <developerConnection>scm:git:https://github.com/aragozin/jorka.git</developerConnection>
         <url>https://github.com/aragozin/jorka</url>
-      <tag>HEAD</tag>
+      <tag>jorka-0.2</tag>
   </scm>
 
     <dependencies>
