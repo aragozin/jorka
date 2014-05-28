@@ -33,28 +33,68 @@ import com.google.code.regexp.Pattern;
 
 public class Jorka extends Object {
 
+	private static Pattern TEMPLATE_PATTERN = Pattern.compile("(\\%[{][^}]*[}])|(\\s+)|([.$%+*?({})\\\\\\^])|([^\\s.$%+{}*?()\\\\\\^]+)");
+	
+	/**
+	 * <p>
+	 * Simple template format is less error prone in case if you want to
+	 * make pattern from text to be matched.
+	 * </p>
+	 * <p>
+	 * Template is converted to Java regular expression with following transformations:
+	 * <li>Special characters (dots, parenthesis, asterisks, etc) are replaced by their literals</li>
+	 * <li>Spaces are replaced with "\s+"</li>
+	 * <li>%{...} constructs are retained</li>
+	 * </p>
+	 */
+	public static String simpleTemplateToRegEx(String template) {
+		StringBuilder sb = new StringBuilder();
+		Matcher m = TEMPLATE_PATTERN.matcher(template);
+		int n = 0;
+		while(m.find(n)) {
+			if (m.start() != n) {
+				throw new IllegalArgumentException("Cannot tokenize [" + template + "]");
+			}
+			String match = m.group();
+			if (m.group(1) != null) {
+				sb.append(match);
+			}
+			else if (m.group(2) != null) {
+				sb.append("\\s+");
+			}
+			else if (m.group(3) != null) {
+				sb.append('\\').append(match);
+			}
+			else {
+				sb.append(match);
+			}
+			n = m.end();
+		}
+		return sb.toString();
+	}
+	
 	private static Pattern PATTERN_RE = Pattern.compile("%\\{(?<name>(?<pattern>[A-z0-9]+)(?::(?<subname>[A-z0-9_:]+))?)(?:=(?<definition>(?:(?:[^{}]+|\\.+)+)+))?\\}");
 
 	private Map<String, String> patterns;
-	@SuppressWarnings("unused")
-	private String savedPattern = null;
 
 	private Map<String, String> capturedMap;
 
 	private String expandedPattern;
-	@SuppressWarnings("unused")
-	private String patternOrigin;
 	private Pattern regexp;
 
 	public Jorka() {
-
-		patternOrigin = null;
 		expandedPattern = null;
 		regexp = null;
 		patterns = new TreeMap<String, String>();
 		capturedMap = new TreeMap<String, String>();
 	}
-
+	
+	public Jorka copyPatterns() {
+		Jorka j = new Jorka();
+		j.capturedMap.putAll(j.patterns);
+		return j;
+	}
+	
 	public void addPattern(String name, String pattern) {
 		patterns.put(name, pattern);
 	}
@@ -145,7 +185,6 @@ public class Jorka extends Object {
 	 */
 	public void compile(String pattern) {
 		expandedPattern = new String(pattern);
-		patternOrigin = new String(pattern);
 		int index = 0;
 		Boolean Continue = true;
 
@@ -365,30 +404,26 @@ public class Jorka extends Object {
 
 		void remove(Map<String, Object> map) {
 
-			if (map == null || map.isEmpty()) {
-				throw new IllegalArgumentException("map is empty");
-			}
-
-			for (Iterator<Map.Entry<String, Object>> it = map.entrySet().iterator(); it.hasNext();) {
-				Map.Entry<String, Object> entry = it.next();
-				for (int i = 0; i < remove.size(); i++)
-					if (entry.getKey().equals(remove.get(i))) {
-						it.remove();
-					}
+			if (map != null) {
+				for (Iterator<Map.Entry<String, Object>> it = map.entrySet().iterator(); it.hasNext();) {
+					Map.Entry<String, Object> entry = it.next();
+					for (int i = 0; i < remove.size(); i++)
+						if (entry.getKey().equals(remove.get(i))) {
+							it.remove();
+						}
+				}
 			}
 		}
 
 		void rename(Map<String, Object> map) {
 
-			if (map == null || map.isEmpty()) {
-				throw new IllegalArgumentException("map is empty");
-			}
-
-			for (Iterator<Map.Entry<String, Object>> it = rename.entrySet().iterator(); it.hasNext();) {
-				Map.Entry<String, Object> entry = it.next();
-				if (map.containsKey(entry.getKey())) {
-					Object obj = map.remove(entry.getKey());
-					map.put(entry.getValue().toString(), obj);
+			if (map != null) {
+				for (Iterator<Map.Entry<String, Object>> it = rename.entrySet().iterator(); it.hasNext();) {
+					Map.Entry<String, Object> entry = it.next();
+					if (map.containsKey(entry.getKey())) {
+						Object obj = map.remove(entry.getKey());
+						map.put(entry.getValue().toString(), obj);
+					}
 				}
 			}
 		}
