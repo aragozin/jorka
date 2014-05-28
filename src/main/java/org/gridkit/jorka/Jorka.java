@@ -33,7 +33,8 @@ import com.google.code.regexp.Pattern;
 
 public class Jorka extends Object {
 
-	private static Pattern TEMPLATE_PATTERN = Pattern.compile("(\\%[{][^}]*[}])|(\\s+)|([.$%+*?({})\\\\\\^])|([^\\s.$%+{}*?()\\\\\\^]+)");
+    private static Pattern META_CHARACTERS = Pattern.compile("\\<\\(\\[\\{\\\\\\^\\-\\=\\$\\!\\|\\]\\}\\)\\?\\*\\+\\.\\>\\s:");
+	private static Pattern TEMPLATE_PATTERN = Pattern.compile("(\\%[{][^}]*[}])|(\\s+)|([" + META_CHARACTERS + "])|([^" + META_CHARACTERS + "\\%]+)");
 	
 	/**
 	 * <p>
@@ -91,11 +92,18 @@ public class Jorka extends Object {
 	
 	public Jorka copyPatterns() {
 		Jorka j = new Jorka();
-		j.capturedMap.putAll(j.patterns);
+		j.patterns.putAll(this.patterns);
 		return j;
 	}
 	
 	public void addPattern(String name, String pattern) {
+	    String ep = expand(pattern);
+	    try {
+	        Pattern.compile(ep);
+	    }
+	    catch(Exception e) {
+	        throw new IllegalArgumentException("Cannot compile: " + pattern, e);
+	    }
 		patterns.put(name, pattern);
 	}
 
@@ -145,11 +153,18 @@ public class Jorka extends Object {
 		BufferedReader br = new BufferedReader(r);
 		String line;
 		// We dont want \n and commented line
-		Pattern MY_PATTERN = Pattern.compile("^([A-z0-9_]+)\\s+(.*)$");
+		Pattern MY_PATTERN = Pattern.compile("^([A-z0-9_]+)([~]?)\\s+(.*)$");
 		while ((line = br.readLine()) != null) {
 			Matcher m = MY_PATTERN.matcher(line);
-			if (m.matches())
-				this.addPattern(m.group(1), m.group(2));
+			if (m.matches()) {
+			    if (m.group(2).length() > 0) {
+			        // process line as simple template
+			        this.addPattern(m.group(1), simpleTemplateToRegEx(m.group(3)));
+			    }
+			    else {
+			        this.addPattern(m.group(1), m.group(3));
+			    }
+			}
 		}
 		br.close();
 	}
@@ -160,7 +175,7 @@ public class Jorka extends Object {
 	 * @param text to match
 	 * @see Match
 	 */
-	public Match match(String text) {
+	public Match find(String text) {
 
 		if (regexp == null)
 			return null;
@@ -181,10 +196,48 @@ public class Jorka extends Object {
 	}
 
 	/**
+	 * Match the <tt>text</tt> with the pattern
+	 * 
+	 * @param text to match
+	 * @see Match
+	 */
+	public Match match(String text) {
+	    
+	    if (regexp == null)
+	        return null;
+	    
+	    Matcher m = regexp.matcher(text);
+	    if (m.matches()) {
+	        Match match = new Match();
+	        match.setText(text);
+	        match.match = m;
+	        match.start = m.start(0);
+	        match.end = m.end(0);
+	        match.line = text;
+	        return match;
+	    }
+	    else {
+	        return null;
+	    }
+	}
+
+	/**
 	 * Transform Jorka regex into a compiled regex
 	 */
 	public void compile(String pattern) {
-		expandedPattern = new String(pattern);
+		this.expandedPattern = expand(pattern);
+		
+		// Compile the regex
+		if (!expandedPattern.isEmpty()) {
+			regexp = Pattern.compile(expandedPattern);
+		} else {
+			throw new IllegalArgumentException("Pattern is not found '"
+					+ pattern + "'");
+		}
+	}
+
+    private String expand(String pattern) {
+        String expandedPattern = new String(pattern);
 		int index = 0;
 		Boolean Continue = true;
 
@@ -214,15 +267,8 @@ public class Jorka extends Object {
 				index++;
 			}
 		}
-
-		// Compile the regex
-		if (!expandedPattern.isEmpty()) {
-			regexp = Pattern.compile(expandedPattern);
-		} else {
-			throw new IllegalArgumentException("Pattern is not found '"
-					+ pattern + "'");
-		}
-	}
+        return expandedPattern;
+    }
 
 	public Map<String, String> getCaptured() {
 		return capturedMap;
@@ -299,7 +345,9 @@ public class Jorka extends Object {
 					else
 						value = cleanString(pairs.getValue().toString());
 				}
-				capture.put(key, (Object) value);
+				if (value != null || !capture.containsKey(key)) {
+				    capture.put(key, (Object) value);
+				}
 				it.remove();
 			}
 		}
@@ -338,8 +386,11 @@ public class Jorka extends Object {
 		}
 
 		private void clean() {
-			garbage.rename(capture);
-			garbage.remove(capture);
+		    if (garbage != null) {
+    			garbage.rename(capture);
+    			garbage.remove(capture);
+		    }
+		    garbage = null;
 		}
 
 		public Boolean isNull() {

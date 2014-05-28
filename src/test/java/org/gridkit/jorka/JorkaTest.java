@@ -16,9 +16,11 @@
 package org.gridkit.jorka;
 
 import org.gridkit.jorka.Jorka.Match;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
-
+@FixMethodOrder(MethodSorters.JVM)
 public class JorkaTest {
 
 	@Test
